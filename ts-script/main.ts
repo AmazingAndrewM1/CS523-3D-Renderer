@@ -62,16 +62,17 @@ if (gl === null){
 const PROGRAM = getFullShaderProgram(gl);
 gl.useProgram(PROGRAM);
 
-const TRIANGLE_VERTICES = new Float32Array([
-  //   x      y
-    0.0,   0.8,
-   -0.8,  -0.6,
-    0.8,  -0.6,
+const RECTANGLE_VERTICES = new Float32Array([
+  //  x      y
+    -0.5,   0.5,
+    -0.5,  -0.5,
+     0.5,   0.5,
+     0.5,  -0.5
 ]);
 
 const buffer = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-gl.bufferData(gl.ARRAY_BUFFER, TRIANGLE_VERTICES, gl.STATIC_DRAW);
+gl.bufferData(gl.ARRAY_BUFFER, RECTANGLE_VERTICES, gl.STATIC_DRAW);
 gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
 const aPosition = gl.getAttribLocation(PROGRAM, "aPosition");
@@ -83,4 +84,4 @@ gl.viewport(0, 0, WEBGL_CANVAS.width, WEBGL_CANVAS.height);  // clip space -> pi
 gl.clearColor(0.5, 0.5, 0.5, 1.0);
 gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
 
-gl.drawArrays(gl.TRIANGLES, 0, 3);
+gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
