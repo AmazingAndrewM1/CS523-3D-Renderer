@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext", // ESM output
+    "outDir": "js-built/",
+    "rootDir": "ts-script/",
+    "strict": true,
+    "declaration": false
+  },
+  "include": ["ts-script/*.ts"],
+  "exclude": []
+}
