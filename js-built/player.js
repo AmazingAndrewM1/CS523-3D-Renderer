@@ -29,18 +29,18 @@ class Player {
         this.x -= this.dx;
         this.y -= this.dy;
     }
-    rotateClockwise() {
-        this.angleRadians -= this.angularVelocity;
-        if (this.angleRadians < 0.0) {
-            this.angleRadians += 2 * Math.PI;
+    turnRight() {
+        this.angleRadians += this.angularVelocity;
+        if (this.angleRadians > 2 * Math.PI) {
+            this.angleRadians -= 2 * Math.PI;
         }
         this.dx = this.speed * Math.cos(this.angleRadians);
         this.dy = this.speed * Math.sin(this.angleRadians);
     }
-    rotateCounterclockwise() {
-        this.angleRadians += this.angularVelocity;
-        if (this.angleRadians > 2 * Math.PI) {
-            this.angleRadians -= 2 * Math.PI;
+    turnLeft() {
+        this.angleRadians -= this.angularVelocity;
+        if (this.angleRadians < 0.0) {
+            this.angleRadians += 2 * Math.PI;
         }
         this.dx = this.speed * Math.cos(this.angleRadians);
         this.dy = this.speed * Math.sin(this.angleRadians);
