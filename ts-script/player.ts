@@ -5,11 +5,14 @@ const PI_OVER_2 = Math.PI / 2.0;
 const PI_3_OVER_2 = 3.0 * PI_OVER_2;
 const EPSILON = PI_2 / 1000.0;
 
+type Point = [number, number];
+
 class Player{
     x: number;
     y: number;
     dx: number;
     dy: number;
+    speed: number;
     angleRadians: number;
     angularVelocity: number;
     tileMap: TileMap;
@@ -17,11 +20,22 @@ class Player{
     constructor(x: number, y: number, tileMap: TileMap){
         this.x = x;
         this.y = y;
+        this.speed = 0.25;
+        this.angleRadians = 0.0;
         this.dx = 0.25;
         this.dy = 0.0;
-        this.angleRadians = 0.0;
         this.angularVelocity = 2.0 * Math.PI / 60.0;
         this.tileMap = tileMap;
+    }
+
+    moveForward(){
+        this.x += this.dx;
+        this.y += this.dy;
+    }
+
+    moveBackward(){
+        this.x -= this.dx;
+        this.y -= this.dy
     }
 
     rotateClockwise(){
@@ -29,6 +43,8 @@ class Player{
         if (this.angleRadians < 0.0){
             this.angleRadians += 2 * Math.PI;
         }
+        this.dx = this.speed * Math.cos(this.angleRadians);
+        this.dy = this.speed * Math.sin(this.angleRadians);
     }
 
     rotateCounterclockwise(){
@@ -36,157 +52,178 @@ class Player{
         if (this.angleRadians > 2 * Math.PI){
             this.angleRadians -= 2 * Math.PI;
         }
+
+        this.dx = this.speed * Math.cos(this.angleRadians);
+        this.dy = this.speed * Math.sin(this.angleRadians);
     }
 
-    getScreenVertices(){
-        let tileCoordinates = new Float32Array([
+    getVertices(){
+        let tileCoordinates = [
             0.0, 0.0,
             -0.1, 0.05,
             -0.1, -0.05
-        ]);
+        ];
 
         let sin = Math.sin(this.angleRadians);
         let cos = Math.cos(this.angleRadians);
 
         for (let i = 0; i < tileCoordinates.length; i += 2){
-            let newX = cos * tileCoordinates[i] - sin * tileCoordinates[i + 1];
-            let newY = sin * tileCoordinates[i] + cos * tileCoordinates[i + 1];
+            let newX = cos * tileCoordinates[i] - sin * tileCoordinates[i + 1] + this.x;
+            let newY = sin * tileCoordinates[i] + cos * tileCoordinates[i + 1] + this.y;
             tileCoordinates[i] = newX;
             tileCoordinates[i + 1] = newY;
         }
 
-        for (let i = 0; i < tileCoordinates.length; i += 2){
-            tileCoordinates[i] += this.x;
-            tileCoordinates[i + 1] += this.y;
-        }
-
-        let screenVertices = tileCoordinates.map(
-            (coord: number) => coord / this.tileMap.tiles.length * 2.0 - 1.0
-        );
-        return screenVertices;
+        return tileCoordinates;
     }
 
-    getHorizontalIntersectionVertices(){ 
-        if (this.angleRadians < EPSILON || this.angleRadians > PI_2 - EPSILON){
+    getQuadrantIAngle(angleRadians: number){
+        if (angleRadians < PI_OVER_2){
+            return angleRadians;
+        }
+        else if (angleRadians < Math.PI){
+            return Math.PI - angleRadians;
+        }
+        else if (angleRadians < PI_3_OVER_2){
+            return angleRadians - Math.PI;
+        }
+        else{
+            return PI_2 - angleRadians;
+        }
+    }
+
+    getHorizontalIntersection(angleRadians: number): Point | null{ 
+        if (angleRadians < EPSILON || angleRadians > PI_2 - EPSILON){
             return null;
         }
-        if (this.angleRadians > Math.PI - EPSILON && this.angleRadians < Math.PI + EPSILON){
+        if (angleRadians > Math.PI - EPSILON && angleRadians < Math.PI + EPSILON){
             return null;
         }
 
-        let intersectionX = 0.0;
-        let intersectionY = 0.0;
+        let isUp = angleRadians > 0.0 && angleRadians < Math.PI;
+        let newY = 0.0;
+        let dy = 0.0;
+        if (isUp){
+            newY = Math.ceil(this.y);
+            dy = newY - this.y;
+        }
+        else{
+            newY = Math.floor(this.y);
+            dy = this.y - newY;
+        }
+
+        let normalizedAngle = this.getQuadrantIAngle(angleRadians);
+        let dx = 1.0 / Math.tan(normalizedAngle);
+        let isLeft = angleRadians > PI_OVER_2 && angleRadians < PI_3_OVER_2;
+        if (isLeft){
+            dx = -dx;
+        }
+        let newX = this.x + dy * dx;
+
         let isInside = true;
-
-        if (this.angleRadians > 0 && this.angleRadians < Math.PI){
-            let newY = Math.ceil(this.y);
-            let dy = newY - this.y;
-            let dx = 1.0 / Math.tan(this.angleRadians);
-            let newX = this.x + dy * dx;
-
-            let isInsideFlag = this.tileMap.isInside(newX, newY);
-            while (isInsideFlag && this.tileMap.getTileAt(Math.floor(newX), Math.floor(newY)) !== TILE_TYPE.WALL){
+        if (isUp){
+            isInside = this.tileMap.isInside(newX, newY);
+            while (isInside && this.tileMap.getTileAt(Math.floor(newX), Math.floor(newY)) !== TILE_TYPE.WALL){
                 newX += dx;
                 ++newY;
-                isInsideFlag = this.tileMap.isInside(newX, newY);
+                isInside = this.tileMap.isInside(newX, newY);
             }
-
-            intersectionX = newX;
-            intersectionY = newY;
-            isInside = isInsideFlag;
         }
         else{
-            let newY = Math.floor(this.y);
-            let dy = this.y - newY;
-            let dx = 1.0 / Math.tan(2.0 * Math.PI - this.angleRadians);
-            let newX = this.x + dy * dx;
-
-            let isInsideFlag = this.tileMap.isInside(newX, newY - 1.0);
-            while (isInsideFlag && this.tileMap.getTileAt(Math.floor(newX), Math.floor(newY) - 1) !== TILE_TYPE.WALL){
+            isInside = this.tileMap.isInside(newX, newY - 1.0);
+            while (isInside && this.tileMap.getTileAt(Math.floor(newX), Math.floor(newY) - 1) !== TILE_TYPE.WALL){
                 newX += dx;
                 --newY;
-                isInsideFlag = this.tileMap.isInside(newX, newY - 1.0);
+                isInside = this.tileMap.isInside(newX, newY - 1.0);
             }
-
-            intersectionX = newX;
-            intersectionY = newY;
-            isInside = isInsideFlag;
         }
-
-        if (!isInside){
-            return null;
-        }
-
-        let horizontalIntersection = new Float32Array([
-            intersectionX, intersectionY    
-        ]);
-        let screenVertices = horizontalIntersection.map(
-            (coord: number) => coord / this.tileMap.tiles.length * 2.0 - 1.0 
-        );
-        return screenVertices;
+        return isInside ? [newX, newY] : null;
     }
 
-    getVerticalIntersectionVertices(){
-        if (this.angleRadians > PI_OVER_2 - EPSILON && this.angleRadians < PI_OVER_2 + EPSILON){
+    getVerticalIntersection(angleRadians: number): Point | null{
+        if (angleRadians > PI_OVER_2 - EPSILON && angleRadians < PI_OVER_2 + EPSILON){
             return null;
         }
-        if (this.angleRadians > PI_3_OVER_2 - EPSILON && this.angleRadians < PI_3_OVER_2 + EPSILON){
+        if (angleRadians > PI_3_OVER_2 - EPSILON && angleRadians < PI_3_OVER_2 + EPSILON){
             return null;
         }
 
-        let intersectionX = 0.0;
-        let intersectionY = 0.0;
-        let isInside = true;
+        let isLeft = angleRadians > PI_OVER_2 && angleRadians < PI_3_OVER_2;
 
-        if (this.angleRadians > PI_OVER_2 && this.angleRadians < PI_3_OVER_2){
-            let newX = Math.floor(this.x);
-            let dx = this.x - newX;
-            let tempAngle = Math.abs(Math.PI - this.angleRadians);
-            let dy = this.angleRadians < Math.PI ? Math.tan(tempAngle) : -Math.tan(tempAngle);
-            let newY = this.y + dx * dy;
-
-            let isInsideFlag = this.tileMap.isInside(newX - 1.0, newY);
-            while (isInsideFlag && this.tileMap.getTileAt(Math.floor(newX) - 1, Math.floor(newY)) !== TILE_TYPE.WALL){
-                --newX;
-                newY += dy;
-                isInsideFlag = this.tileMap.isInside(newX - 1.0, newY);
-            }
-
-            intersectionX = newX;
-            intersectionY = newY;
-            isInside = isInsideFlag;        
+        let newX = 0.0;
+        let dx = 0.0;
+        if (isLeft){
+            newX = Math.floor(this.x);
+            dx = this.x - newX;
         }
         else{
-            let newX = Math.ceil(this.x);
-            let dx = newX - this.x;
-            let tempAngle = this.angleRadians < Math.PI ? this.angleRadians : PI_2 - this.angleRadians;
-            let dy = this.angleRadians < Math.PI ? Math.tan(tempAngle) : -Math.tan(tempAngle);
-            let newY = this.y + dx * dy;
+            newX = Math.ceil(this.x);
+            dx = newX - this.x;
+        }
 
-            let isInsideFlag = this.tileMap.isInside(newX, newY);
-            while (isInsideFlag && this.tileMap.getTileAt(Math.floor(newX), Math.floor(newY)) !== TILE_TYPE.WALL){
+        let tempAngle = this.getQuadrantIAngle(angleRadians);
+        let dy = Math.tan(tempAngle);
+        let isUp = angleRadians > 0.0 && angleRadians < Math.PI;
+        if (!isUp){
+            dy = -dy;
+        }
+        let newY = this.y + dx * dy;
+
+        let isInside = true;
+        if (isLeft){
+            isInside = this.tileMap.isInside(newX - 1.0, newY);
+            while (isInside && this.tileMap.getTileAt(Math.floor(newX) - 1, Math.floor(newY)) !== TILE_TYPE.WALL){
+                --newX;
+                newY += dy;
+                isInside = this.tileMap.isInside(newX - 1.0, newY);
+            }
+        }
+        else{
+            let isInside = this.tileMap.isInside(newX, newY);
+            while (isInside && this.tileMap.getTileAt(Math.floor(newX), Math.floor(newY)) !== TILE_TYPE.WALL){
                 ++newX;
                 newY += dy;
-                isInsideFlag = this.tileMap.isInside(newX, newY);
+                isInside = this.tileMap.isInside(newX, newY);
+            }
+        }
+
+        return isInside ? [newX, newY] : null;
+    }
+
+    getNearerIntersection(intersection1: Point | null, intersection2: Point | null){
+        if (intersection1 === null){
+            return intersection2;
+        }
+        if (intersection2 === null){
+            return intersection1;
+        }
+
+        return this.x < intersection1[0] === intersection1[0] < intersection2[0] ? intersection1 : intersection2;
+    }
+
+    getAllIntersections(fovDegrees: number){
+        let radianDelta = 0.5 * fovDegrees * Math.PI / 180.0;
+
+        let intersections = [];
+        for (let angle = this.angleRadians - radianDelta; angle < this.angleRadians + radianDelta; angle += Math.PI / 180.0){
+            let normalizedAngle = angle;
+            if (angle < 0.0){
+                normalizedAngle += PI_2;
+            }
+            else if (angle > PI_2){
+                normalizedAngle -= PI_2;
             }
 
-            intersectionX = newX;
-            intersectionY = newY;
-            isInside = isInsideFlag;
+            intersections.push(
+                this.getNearerIntersection(
+                    this.getHorizontalIntersection(normalizedAngle), 
+                    this.getVerticalIntersection(normalizedAngle)
+                )
+            );
         }
 
-        if (!isInside){
-            return null;
-        }
-
-        let verticalIntersection = new Float32Array([
-            intersectionX, intersectionY    
-        ]);
-        let screenVertices = verticalIntersection.map(
-            (coord: number) => coord / this.tileMap.tiles.length * 2.0 - 1.0 
-        );
-        return screenVertices;
+        return intersections;
     }
 }
 
-export {Player};
+export {Player, Point};
