@@ -1,6 +1,8 @@
 import {TileMap, TILE_TYPE} from "./map";
 import {Player, Point} from "./player";
 
+let shouldDebug = true;
+
 async function loadShaderSource(filePath: string): Promise<string>{
     const response = await fetch(filePath); 
     if (!response.ok){
@@ -120,6 +122,53 @@ function drawPoint(gl: WebGLRenderingContext, program: WebGLProgram, point: [num
     gl.drawArrays(gl.POINTS, 0, 1);
 }
 
+function drawVerticalStrips(gl: WebGLRenderingContext, program: WebGLProgram, intersections: Point[]){
+    let lineHeights = intersections.map(
+        (point) => gl.getParameter(gl.VIEWPORT)[3] / Math.hypot(player.x - point[0], player.y - point[1])
+    );
+
+    let stripWidth = gl.getParameter(gl.VIEWPORT)[2] / lineHeights.length;
+    let stripMiddleY = 0.5 * gl.getParameter(gl.VIEWPORT)[3];
+    let stripPoints = lineHeights.map(
+        (height, i) => {
+            let screenX = i * stripWidth;
+            let halfHeight = 0.5 * height;
+            let bottomLeft = [screenX, stripMiddleY - halfHeight];
+            let bottomRight = [screenX + stripWidth, stripMiddleY - halfHeight];
+            let topRight = [screenX + stripWidth, stripMiddleY + halfHeight];
+            let topLeft = [screenX, stripMiddleY + halfHeight];
+
+            return [
+                bottomLeft,
+                bottomRight,
+                topLeft,
+                bottomRight,
+                topRight,
+                topLeft
+            ];
+        }
+    ).flat(Infinity) as number[];
+
+    const VERTEX_BUFFER = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, VERTEX_BUFFER);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(stripPoints), gl.STATIC_DRAW);
+
+    const aPosition = gl.getAttribLocation(program, "aPosition");
+    gl.enableVertexAttribArray(aPosition);
+    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 2 * Float32Array.BYTES_PER_ELEMENT, 0);
+
+    let colors = new Array(stripPoints.length).fill([1.0, 0.0, 0.0]).flat();
+    const COLOR_BUFFER = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, COLOR_BUFFER);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+    const aColor = gl.getAttribLocation(program, "aColor");
+    gl.enableVertexAttribArray(aColor);
+    gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 3 * Float32Array.BYTES_PER_ELEMENT, 0);
+
+    gl.drawArrays(gl.TRIANGLES, 0, stripPoints.length / 2);
+}
+
 function getNearerIntersection(player: Player, intersection1: Point | null, intersection2: Point | null){
     if (intersection1 === null){
         return intersection2;
@@ -156,38 +205,24 @@ gl.clearColor(0.5, 0.5, 0.5, 1.0);
 
 let tileMap = new TileMap(gl.getParameter(gl.VIEWPORT) as Int32Array);
 let player = new Player(1.2, 3.45, tileMap);
-
 function drawScene(gl: WebGLRenderingContext){
     gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
 
-    const UNIFORM_HANDLE = gl.getUniformLocation(PROGRAM, "uMapLength");
-    gl.uniform1i(UNIFORM_HANDLE, tileMap.tiles.length);
-
-    let wallCoordinates: Point[] = [];
-    for (let x = 0; x < tileMap.tiles.length; ++x){
-        for (let y = 0; y < tileMap.tiles.length; ++y){
-            if (tileMap.getTileAt(x, y) === TILE_TYPE.WALL){
-                wallCoordinates.push([x, y]);
-            }
-        }
-    }
-    drawWalls(wallCoordinates, gl, PROGRAM);
-    drawPlayer(gl, PROGRAM, player);
+    const WINDOW_HEIGHT_HANDLE = gl.getUniformLocation(PROGRAM, "uWindowHeight");
+    gl.uniform1i(WINDOW_HEIGHT_HANDLE, (gl.getParameter(gl.VIEWPORT) as Int32Array)[3]);
 
     let intersections = player.getAllIntersections(60.0).filter((point) => point !== null);
-    for (let intersection of intersections){
-        drawPoint(gl, PROGRAM, intersection);
-    }
+    drawVerticalStrips(gl, PROGRAM, intersections);
 }
 
 document.addEventListener("keydown", (event) => {
     let doesKeyAffect = true;
     switch (event.key){
         case "ArrowRight":
-            player.rotateClockwise();
+            player.turnRight();
             break;
         case "ArrowLeft":
-            player.rotateCounterclockwise();
+            player.turnLeft();
             break;
         case "ArrowUp":
             player.moveForward();

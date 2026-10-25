@@ -38,21 +38,21 @@ class Player{
         this.y -= this.dy
     }
 
-    rotateClockwise(){
-        this.angleRadians -= this.angularVelocity;
-        if (this.angleRadians < 0.0){
-            this.angleRadians += 2 * Math.PI;
-        }
-        this.dx = this.speed * Math.cos(this.angleRadians);
-        this.dy = this.speed * Math.sin(this.angleRadians);
-    }
-
-    rotateCounterclockwise(){
+    turnRight(){
         this.angleRadians += this.angularVelocity;
         if (this.angleRadians > 2 * Math.PI){
             this.angleRadians -= 2 * Math.PI;
         }
 
+        this.dx = this.speed * Math.cos(this.angleRadians);
+        this.dy = this.speed * Math.sin(this.angleRadians);
+    }
+
+    turnLeft(){
+        this.angleRadians -= this.angularVelocity;
+        if (this.angleRadians < 0.0){
+            this.angleRadians += 2 * Math.PI;
+        }
         this.dx = this.speed * Math.cos(this.angleRadians);
         this.dy = this.speed * Math.sin(this.angleRadians);
     }
@@ -219,7 +219,7 @@ class Player{
                     this.getHorizontalIntersection(normalizedAngle), 
                     this.getVerticalIntersection(normalizedAngle)
                 )
-            );
+            ); 
         }
 
         return intersections;
