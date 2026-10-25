@@ -2,8 +2,8 @@ class TileMap {
     tiles = [
         [1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */],
         [1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */],
-        [1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */],
-        [1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */],
+        [1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */],
+        [1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */],
         [1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */],
         [1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */]
     ];
