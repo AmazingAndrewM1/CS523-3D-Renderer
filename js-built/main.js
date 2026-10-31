@@ -95,17 +95,27 @@ function drawPoint(gl, program, point) {
     gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 3 * Float32Array.BYTES_PER_ELEMENT, 0);
     gl.drawArrays(gl.POINTS, 0, 1);
 }
-function drawVerticalStrips(gl, program, intersections) {
-    let lineHeights = intersections.map((point) => gl.getParameter(gl.VIEWPORT)[3] / Math.hypot(player.x - point[0], player.y - point[1]));
-    let stripWidth = gl.getParameter(gl.VIEWPORT)[2] / lineHeights.length;
+function drawVerticalStripsFromIntersections(gl, program, intersections) {
+    /*
+        Format of pipeline (for now)
+        [x, y, isBoundaryHorizontal]
+    */
+    let sin = Math.sin(player.angleRadians);
+    let cos = Math.cos(player.angleRadians);
+    let stripWidth = gl.getParameter(gl.VIEWPORT)[2] / intersections.length;
     let stripMiddleY = 0.5 * gl.getParameter(gl.VIEWPORT)[3];
-    let stripPoints = lineHeights.map((height, i) => {
-        let screenX = i * stripWidth;
-        let halfHeight = 0.5 * height;
-        let bottomLeft = [screenX, stripMiddleY - halfHeight];
-        let bottomRight = [screenX + stripWidth, stripMiddleY - halfHeight];
-        let topRight = [screenX + stripWidth, stripMiddleY + halfHeight];
-        let topLeft = [screenX, stripMiddleY + halfHeight];
+    let stripData = intersections.map((intersection, i) => {
+        let normalizedDistance = Math.sqrt((intersection.point[0] - player.x) * cos + (intersection.point[1] - player.y) * sin);
+        let halfHeight = 0.5 * gl.getParameter(gl.VIEWPORT)[3] / normalizedDistance;
+        let leftX = i * stripWidth;
+        let rightX = leftX + stripWidth;
+        let bottomY = stripMiddleY - halfHeight;
+        let topY = stripMiddleY + halfHeight;
+        let boundaryFloat = intersection.isBoundaryHorizontal ? 1 : 0;
+        let bottomLeft = [leftX, bottomY, boundaryFloat];
+        let bottomRight = [rightX, bottomY, boundaryFloat];
+        let topRight = [rightX, topY, boundaryFloat];
+        let topLeft = [leftX, topY, boundaryFloat];
         return [
             bottomLeft,
             bottomRight,
@@ -117,27 +127,21 @@ function drawVerticalStrips(gl, program, intersections) {
     }).flat(Infinity);
     const VERTEX_BUFFER = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, VERTEX_BUFFER);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(stripPoints), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(stripData), gl.STATIC_DRAW);
     const aPosition = gl.getAttribLocation(program, "aPosition");
     gl.enableVertexAttribArray(aPosition);
-    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 2 * Float32Array.BYTES_PER_ELEMENT, 0);
-    let colors = new Array(stripPoints.length).fill([1, 0, 0]).flat();
+    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 3 * Float32Array.BYTES_PER_ELEMENT, 0);
+    const aOrientation = gl.getAttribLocation(program, "aOrientation");
+    gl.enableVertexAttribArray(aOrientation);
+    gl.vertexAttribPointer(aOrientation, 1, gl.FLOAT, false, 3 * Float32Array.BYTES_PER_ELEMENT, 2 * Float32Array.BYTES_PER_ELEMENT);
+    let colors = new Array(stripData.length).fill([1, 0, 0]).flat();
     const COLOR_BUFFER = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, COLOR_BUFFER);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
     const aColor = gl.getAttribLocation(program, "aColor");
     gl.enableVertexAttribArray(aColor);
     gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 3 * Float32Array.BYTES_PER_ELEMENT, 0);
-    gl.drawArrays(gl.TRIANGLES, 0, stripPoints.length / 2);
-}
-function getNearerIntersection(player, intersection1, intersection2) {
-    if (intersection1 === null) {
-        return intersection2;
-    }
-    if (intersection2 === null) {
-        return intersection1;
-    }
-    return player.x < intersection1[0] === intersection1[0] < intersection2[0] ? intersection1 : intersection2;
+    gl.drawArrays(gl.TRIANGLES, 0, stripData.length / 3);
 }
 const VERTEX_SRC = loadShaderSource("./shader/vertex.vs");
 const FRAGMENT_SRC = loadShaderSource("./shader/fragment.fs");
@@ -163,8 +167,8 @@ function drawScene(gl) {
     gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
     const WINDOW_HEIGHT_HANDLE = gl.getUniformLocation(PROGRAM, "uWindowHeight");
     gl.uniform1i(WINDOW_HEIGHT_HANDLE, gl.getParameter(gl.VIEWPORT)[3]);
-    let intersections = player.getAllIntersections(60).filter((point) => point !== null);
-    drawVerticalStrips(gl, PROGRAM, intersections);
+    let intersections = player.getAllIntersections(60);
+    drawVerticalStripsFromIntersections(gl, PROGRAM, intersections);
 }
 document.addEventListener("keydown", (event) => {
     let doesKeyAffect = true;
@@ -176,10 +180,10 @@ document.addEventListener("keydown", (event) => {
             player.turnLeft();
             break;
         case "ArrowUp":
-            player.moveForward();
+            player.tryMoveForward();
             break;
         case "ArrowDown":
-            player.moveBackward();
+            player.tryMoveBackward();
             break;
         default:
             doesKeyAffect = false;

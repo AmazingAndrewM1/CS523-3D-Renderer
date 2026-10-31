@@ -2,6 +2,7 @@ const PI_2 = 2.0 * Math.PI;
 const PI_OVER_2 = Math.PI / 2.0;
 const PI_3_OVER_2 = 3.0 * PI_OVER_2;
 const EPSILON = PI_2 / 1000.0;
+const ONE_DEG_TO_RAD = Math.PI / 180.0;
 class Player {
     x;
     y;
@@ -21,13 +22,19 @@ class Player {
         this.angularVelocity = 2.0 * Math.PI / 60.0;
         this.tileMap = tileMap;
     }
-    moveForward() {
-        this.x += this.dx;
-        this.y += this.dy;
+    tryMove(newX, newY) {
+        if (this.tileMap.isInside(newX, newY) && this.tileMap.getTileAt(Math.floor(newX), Math.floor(newY)) !== 1 /* TILE_TYPE.WALL */) {
+            this.x = newX;
+            this.y = newY;
+        }
     }
-    moveBackward() {
-        this.x -= this.dx;
-        this.y -= this.dy;
+    tryMoveForward() {
+        this.tryMove(this.x + this.dx, this.y);
+        this.tryMove(this.x, this.y + this.dy);
+    }
+    tryMoveBackward() {
+        this.tryMove(this.x - this.dx, this.y);
+        this.tryMove(this.x, this.y - this.dy);
     }
     turnRight() {
         this.angleRadians += this.angularVelocity;
@@ -117,7 +124,7 @@ class Player {
                 isInside = this.tileMap.isInside(newX, newY - 1.0);
             }
         }
-        return isInside ? [newX, newY] : null;
+        return isInside ? { point: [newX, newY], isBoundaryHorizontal: true } : null;
     }
     getVerticalIntersection(angleRadians) {
         if (angleRadians > PI_OVER_2 - EPSILON && angleRadians < PI_OVER_2 + EPSILON) {
@@ -161,7 +168,7 @@ class Player {
                 isInside = this.tileMap.isInside(newX, newY);
             }
         }
-        return isInside ? [newX, newY] : null;
+        return isInside ? { point: [newX, newY], isBoundaryHorizontal: false } : null;
     }
     getNearerIntersection(intersection1, intersection2) {
         if (intersection1 === null) {
@@ -170,12 +177,12 @@ class Player {
         if (intersection2 === null) {
             return intersection1;
         }
-        return this.x < intersection1[0] === intersection1[0] < intersection2[0] ? intersection1 : intersection2;
+        return this.x < intersection1.point[0] === intersection1.point[0] < intersection2.point[0] ? intersection1 : intersection2;
     }
     getAllIntersections(fovDegrees) {
-        let radianDelta = 0.5 * fovDegrees * Math.PI / 180.0;
+        let radianDelta = 0.5 * fovDegrees * ONE_DEG_TO_RAD;
         let intersections = [];
-        for (let angle = this.angleRadians - radianDelta; angle < this.angleRadians + radianDelta; angle += Math.PI / 180.0) {
+        for (let angle = this.angleRadians - radianDelta; angle < this.angleRadians + radianDelta; angle += ONE_DEG_TO_RAD) {
             let normalizedAngle = angle;
             if (angle < 0.0) {
                 normalizedAngle += PI_2;
@@ -183,7 +190,11 @@ class Player {
             else if (angle > PI_2) {
                 normalizedAngle -= PI_2;
             }
-            intersections.push(this.getNearerIntersection(this.getHorizontalIntersection(normalizedAngle), this.getVerticalIntersection(normalizedAngle)));
+            let intersection = this.getNearerIntersection(this.getHorizontalIntersection(normalizedAngle), this.getVerticalIntersection(normalizedAngle));
+            if (intersection === null) {
+                throw new TypeError("intersection is null");
+            }
+            intersections.push(intersection);
         }
         return intersections;
     }

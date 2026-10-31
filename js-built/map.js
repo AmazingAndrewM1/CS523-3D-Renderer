@@ -1,11 +1,17 @@
+const W = 1 /* TILE_TYPE.WALL */;
+const F = 0 /* TILE_TYPE.FLOOR */;
 class TileMap {
     tiles = [
-        [1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */],
-        [1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */],
-        [1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */],
-        [1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */],
-        [1 /* TILE_TYPE.WALL */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 0 /* TILE_TYPE.FLOOR */, 1 /* TILE_TYPE.WALL */],
-        [1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */, 1 /* TILE_TYPE.WALL */]
+        [W, W, W, W, W, W, W, W, W, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, F, F, F, W, F, F, F, F, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, F, F, F, F, F, F, W, W, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, W, W, W, W, W, W, W, W, W]
     ];
     tileSize;
     viewportSize;

@@ -3,14 +3,21 @@ const enum TILE_TYPE{
     WALL
 }
 
+const W = TILE_TYPE.WALL;
+const F = TILE_TYPE.FLOOR;
+
 class TileMap{
     tiles: TILE_TYPE[][] = [
-        [TILE_TYPE.WALL, TILE_TYPE.WALL, TILE_TYPE.WALL, TILE_TYPE.WALL, TILE_TYPE.WALL, TILE_TYPE.WALL],
-        [TILE_TYPE.WALL, TILE_TYPE.FLOOR, TILE_TYPE.FLOOR, TILE_TYPE.FLOOR, TILE_TYPE.FLOOR, TILE_TYPE.WALL],
-        [TILE_TYPE.WALL, TILE_TYPE.FLOOR, TILE_TYPE.FLOOR, TILE_TYPE.WALL, TILE_TYPE.FLOOR, TILE_TYPE.WALL],
-        [TILE_TYPE.WALL, TILE_TYPE.WALL, TILE_TYPE.FLOOR, TILE_TYPE.FLOOR, TILE_TYPE.FLOOR, TILE_TYPE.WALL],
-        [TILE_TYPE.WALL, TILE_TYPE.FLOOR, TILE_TYPE.FLOOR, TILE_TYPE.FLOOR, TILE_TYPE.FLOOR, TILE_TYPE.WALL],
-        [TILE_TYPE.WALL, TILE_TYPE.WALL, TILE_TYPE.WALL, TILE_TYPE.WALL, TILE_TYPE.WALL, TILE_TYPE.WALL]
+        [W, W, W, W, W, W, W, W, W, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, F, F, F, W, F, F, F, F, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, F, F, F, F, F, F, W, W, W],
+        [W, F, F, F, F, F, F, F, F, W],
+        [W, W, W, W, W, W, W, W, W, W]
     ];
     tileSize: number;
     viewportSize: number
