@@ -9,7 +9,9 @@ const ONE_DEG_TO_RAD = Math.PI / 180.0;
 type Point = [number, number];
 type Intersection = {
     point: Point,
-    isBoundaryHorizontal: boolean
+    isBoundaryHorizontal: boolean,
+    isUp: boolean,
+    isLeft: boolean
 };
 
 class Player{
@@ -22,11 +24,11 @@ class Player{
     angularVelocity: number;
     tileMap: TileMap;
 
-    constructor(x: number, y: number, tileMap: TileMap){
+    constructor(x: number, y: number, angleRadians: number, tileMap: TileMap){
         this.x = x;
         this.y = y;
         this.speed = 0.25;
-        this.angleRadians = 0.0;
+        this.angleRadians = angleRadians;
         this.dx = 0.25;
         this.dy = 0.0;
         this.angularVelocity = 2.0 * Math.PI / 60.0;
@@ -51,20 +53,20 @@ class Player{
     }
 
     turnRight(){
-        this.angleRadians += this.angularVelocity;
-        if (this.angleRadians > 2 * Math.PI){
-            this.angleRadians -= 2 * Math.PI;
+        this.angleRadians -= this.angularVelocity;
+        if (this.angleRadians < 0.0){
+            this.angleRadians += 2 * Math.PI;
         }
-
         this.dx = this.speed * Math.cos(this.angleRadians);
         this.dy = this.speed * Math.sin(this.angleRadians);
     }
 
     turnLeft(){
-        this.angleRadians -= this.angularVelocity;
-        if (this.angleRadians < 0.0){
-            this.angleRadians += 2 * Math.PI;
+        this.angleRadians += this.angularVelocity;
+        if (this.angleRadians > 2 * Math.PI){
+            this.angleRadians -= 2 * Math.PI;
         }
+
         this.dx = this.speed * Math.cos(this.angleRadians);
         this.dy = this.speed * Math.sin(this.angleRadians);
     }
@@ -149,7 +151,12 @@ class Player{
                 isInside = this.tileMap.isInside(newX, newY - 1.0);
             }
         }
-        return isInside ? {point: [newX, newY], isBoundaryHorizontal: true} : null;
+        return isInside ? {
+            point: [newX, newY], 
+            isBoundaryHorizontal: true,
+            isUp: isUp,
+            isLeft: isLeft
+        } : null;
     }
 
     getVerticalIntersection(angleRadians: number): Intersection | null{
@@ -199,7 +206,12 @@ class Player{
             }
         }
 
-        return isInside ? {point: [newX, newY], isBoundaryHorizontal: false} : null;
+        return isInside ? {
+            point: [newX, newY], 
+            isBoundaryHorizontal: false,
+            isUp: isUp,
+            isLeft: isLeft
+        } : null;
     }
 
     getNearerIntersection(intersection1: Intersection | null, intersection2: Intersection | null){
@@ -217,7 +229,8 @@ class Player{
         let radianDelta = 0.5 * fovDegrees * ONE_DEG_TO_RAD;
 
         let intersections = [];
-        for (let angle = this.angleRadians - radianDelta; angle < this.angleRadians + radianDelta; angle += ONE_DEG_TO_RAD){
+        /* Span from this.angleRadians + radianDelta to this.angleRadians - radianDelta so that the rays are in the proper order */
+        for (let angle = this.angleRadians + radianDelta; angle > this.angleRadians - radianDelta; angle -= ONE_DEG_TO_RAD){
             let normalizedAngle = angle;
             if (angle < 0.0){
                 normalizedAngle += PI_2;

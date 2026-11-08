@@ -12,11 +12,11 @@ class Player {
     angleRadians;
     angularVelocity;
     tileMap;
-    constructor(x, y, tileMap) {
+    constructor(x, y, angleRadians, tileMap) {
         this.x = x;
         this.y = y;
         this.speed = 0.25;
-        this.angleRadians = 0.0;
+        this.angleRadians = angleRadians;
         this.dx = 0.25;
         this.dy = 0.0;
         this.angularVelocity = 2.0 * Math.PI / 60.0;
@@ -37,17 +37,17 @@ class Player {
         this.tryMove(this.x, this.y - this.dy);
     }
     turnRight() {
-        this.angleRadians += this.angularVelocity;
-        if (this.angleRadians > 2 * Math.PI) {
-            this.angleRadians -= 2 * Math.PI;
+        this.angleRadians -= this.angularVelocity;
+        if (this.angleRadians < 0.0) {
+            this.angleRadians += 2 * Math.PI;
         }
         this.dx = this.speed * Math.cos(this.angleRadians);
         this.dy = this.speed * Math.sin(this.angleRadians);
     }
     turnLeft() {
-        this.angleRadians -= this.angularVelocity;
-        if (this.angleRadians < 0.0) {
-            this.angleRadians += 2 * Math.PI;
+        this.angleRadians += this.angularVelocity;
+        if (this.angleRadians > 2 * Math.PI) {
+            this.angleRadians -= 2 * Math.PI;
         }
         this.dx = this.speed * Math.cos(this.angleRadians);
         this.dy = this.speed * Math.sin(this.angleRadians);
@@ -182,7 +182,8 @@ class Player {
     getAllIntersections(fovDegrees) {
         let radianDelta = 0.5 * fovDegrees * ONE_DEG_TO_RAD;
         let intersections = [];
-        for (let angle = this.angleRadians - radianDelta; angle < this.angleRadians + radianDelta; angle += ONE_DEG_TO_RAD) {
+        /* Span from this.angleRadians + radianDelta to this.angleRadians - radianDelta so that the rays are in the proper order */
+        for (let angle = this.angleRadians + radianDelta; angle > this.angleRadians - radianDelta; angle -= ONE_DEG_TO_RAD) {
             let normalizedAngle = angle;
             if (angle < 0.0) {
                 normalizedAngle += PI_2;

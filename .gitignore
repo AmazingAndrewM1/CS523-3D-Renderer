@@ -150,3 +150,6 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+#Personal test files that should not be present in the GitHub
+/**/test*
