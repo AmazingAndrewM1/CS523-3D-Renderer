@@ -136,6 +136,34 @@ function drawPoint(gl, program, point) {
     gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 3 * Float32Array.BYTES_PER_ELEMENT, 0);
     gl.drawArrays(gl.POINTS, 0, 1);
 }
+function getTextureCoordinates(intersection, nextIntersection) {
+    function getIdentity(val) {
+        return val;
+    }
+    function getNegated(val) {
+        return -val;
+    }
+    let uOperation;
+    let index;
+    if (intersection.isBoundaryHorizontal) {
+        uOperation = intersection.isUp ? getIdentity : getNegated;
+        index = 0;
+    }
+    else {
+        uOperation = intersection.isLeft ? getIdentity : getNegated;
+        index = 1;
+    }
+    let bottomLeft = [uOperation(intersection.point[index]), 0];
+    let bottomRight = [uOperation(nextIntersection.point[index]), 0];
+    let topRight = [uOperation(nextIntersection.point[index]), 1];
+    let topLeft = [uOperation(intersection.point[index]), 1];
+    return [
+        bottomLeft,
+        bottomRight,
+        topRight,
+        topLeft
+    ];
+}
 function drawVerticalStripsFromIntersections(gl, program, intersections, wallTexture) {
     /*
         Format of pipeline (for now)
@@ -155,11 +183,24 @@ function drawVerticalStripsFromIntersections(gl, program, intersections, wallTex
         let rightX = leftX + stripWidth;
         let bottomY = stripMiddleY - halfHeight;
         let topY = stripMiddleY + halfHeight;
+        let bottomLeft = [[leftX, bottomY]];
+        let bottomRight = [[rightX, bottomY]];
+        let topRight = [[rightX, topY]];
+        let topLeft = [[leftX, topY]];
+        let coordinateInfos = [
+            bottomLeft,
+            bottomRight,
+            topRight,
+            topLeft
+        ];
+        let textureCoordinates = getTextureCoordinates(intersection, nextIntersection);
+        for (let i = 0; i < coordinateInfos.length; ++i) {
+            coordinateInfos[i].push(textureCoordinates[i]);
+        }
         let boundaryFloat = intersection.isBoundaryHorizontal ? 1 : 0;
-        let bottomLeft = [leftX, bottomY, intersection.point[0], 0, boundaryFloat];
-        let bottomRight = [rightX, bottomY, nextIntersection.point[0], 0, boundaryFloat];
-        let topRight = [rightX, topY, nextIntersection.point[0], 1, boundaryFloat];
-        let topLeft = [leftX, topY, intersection.point[0], 1, boundaryFloat];
+        for (let i = 0; i < coordinateInfos.length; ++i) {
+            coordinateInfos[i].push([boundaryFloat]);
+        }
         stripData.push([
             bottomLeft,
             bottomRight,
@@ -170,29 +211,6 @@ function drawVerticalStripsFromIntersections(gl, program, intersections, wallTex
         ]);
     }
     stripData = stripData.flat(Infinity);
-    // let stripData = intersections.map(
-    //     (intersection, i) => {
-    //         let normalizedDistance = Math.sqrt((intersection.point[0] - player.x) * cos + (intersection.point[1] - player.y) * sin);
-    //         let halfHeight = 0.5 * gl.getParameter(gl.VIEWPORT)[3] / normalizedDistance;
-    //         let leftX = i * stripWidth;
-    //         let rightX = leftX + stripWidth;
-    //         let bottomY = stripMiddleY - halfHeight;
-    //         let topY = stripMiddleY + halfHeight;
-    //         let boundaryFloat = intersection.isBoundaryHorizontal ? 1.0 : 0.0;
-    //         let bottomLeft = [leftX, bottomY, fractionalPart, 0.0, boundaryFloat];
-    //         let bottomRight = [rightX, bottomY, fractionalPart, 0.0, boundaryFloat];
-    //         let topRight = [rightX, topY, fractionalPart, 1.0, boundaryFloat];
-    //         let topLeft = [leftX, topY, fractionalPart, 1.0, boundaryFloat];
-    //         return [
-    //             bottomLeft,
-    //             bottomRight,
-    //             topLeft,
-    //             bottomRight, 
-    //             topRight,
-    //             topLeft
-    //         ];
-    //     }
-    // ).flat(Infinity) as number[];
     const DATA_BUFFER = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, DATA_BUFFER);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(stripData), gl.STATIC_DRAW);

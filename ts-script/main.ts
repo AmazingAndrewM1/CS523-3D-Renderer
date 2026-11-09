@@ -172,6 +172,39 @@ function drawPoint(gl: WebGLRenderingContext, program: WebGLProgram, point: [num
     gl.drawArrays(gl.POINTS, 0, 1);
 }
 
+function getTextureCoordinates(intersection: Intersection, nextIntersection: Intersection){
+    type Operation = (val: number) => number;
+    function getIdentity(val: number){
+        return val;
+    }
+    function getNegated(val: number){
+        return -val;
+    }
+
+    let uOperation: Operation;
+    let index;
+    if (intersection.isBoundaryHorizontal){
+        uOperation = intersection.isUp ? getIdentity : getNegated;
+        index = 0;
+    }
+    else{
+        uOperation = intersection.isLeft ? getIdentity : getNegated;
+        index = 1;
+    }
+
+    let bottomLeft = [uOperation(intersection.point[index]), 0.0];
+    let bottomRight = [uOperation(nextIntersection.point[index]), 0.0];
+    let topRight = [uOperation(nextIntersection.point[index]), 1.0];
+    let topLeft = [uOperation(intersection.point[index]), 1.0];
+
+    return [
+        bottomLeft,
+        bottomRight,
+        topRight,
+        topLeft
+    ];
+}
+
 function drawVerticalStripsFromIntersections(gl: WebGLRenderingContext, program: WebGLProgram, intersections: Intersection[], wallTexture: Texture){
     /*
         Format of pipeline (for now)
@@ -195,12 +228,27 @@ function drawVerticalStripsFromIntersections(gl: WebGLRenderingContext, program:
         let rightX = leftX + stripWidth;
         let bottomY = stripMiddleY - halfHeight;
         let topY = stripMiddleY + halfHeight;
+        
+        let bottomLeft = [[leftX, bottomY]];
+        let bottomRight = [[rightX, bottomY]];
+        let topRight = [[rightX, topY]];
+        let topLeft = [[leftX, topY]];
+        let coordinateInfos = [
+            bottomLeft,
+            bottomRight,
+            topRight,
+            topLeft
+        ];
+
+        let textureCoordinates = getTextureCoordinates(intersection, nextIntersection);
+        for (let i = 0; i < coordinateInfos.length; ++i){
+            coordinateInfos[i].push(textureCoordinates[i]);
+        }
 
         let boundaryFloat = intersection.isBoundaryHorizontal ? 1.0 : 0.0;
-        let bottomLeft = [leftX, bottomY, intersection.point[0], 0.0, boundaryFloat];
-        let bottomRight = [rightX, bottomY, nextIntersection.point[0], 0.0, boundaryFloat];
-        let topRight = [rightX, topY, nextIntersection.point[0], 1.0, boundaryFloat];
-        let topLeft = [leftX, topY, intersection.point[0], 1.0, boundaryFloat];
+        for (let i = 0; i < coordinateInfos.length; ++i){
+            coordinateInfos[i].push([boundaryFloat]);
+        }
 
         stripData.push([
             bottomLeft,

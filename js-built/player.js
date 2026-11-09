@@ -124,7 +124,12 @@ class Player {
                 isInside = this.tileMap.isInside(newX, newY - 1.0);
             }
         }
-        return isInside ? { point: [newX, newY], isBoundaryHorizontal: true } : null;
+        return isInside ? {
+            point: [newX, newY],
+            isBoundaryHorizontal: true,
+            isUp: isUp,
+            isLeft: isLeft
+        } : null;
     }
     getVerticalIntersection(angleRadians) {
         if (angleRadians > PI_OVER_2 - EPSILON && angleRadians < PI_OVER_2 + EPSILON) {
@@ -168,7 +173,12 @@ class Player {
                 isInside = this.tileMap.isInside(newX, newY);
             }
         }
-        return isInside ? { point: [newX, newY], isBoundaryHorizontal: false } : null;
+        return isInside ? {
+            point: [newX, newY],
+            isBoundaryHorizontal: false,
+            isUp: isUp,
+            isLeft: isLeft
+        } : null;
     }
     getNearerIntersection(intersection1, intersection2) {
         if (intersection1 === null) {
