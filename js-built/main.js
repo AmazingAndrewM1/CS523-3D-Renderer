@@ -8,6 +8,47 @@ async function loadShaderSource(filePath) {
     }
     return response.text();
 }
+function getDefaultWallTexture() {
+    let magenta = [255, 0, 255, 255];
+    let black = [0, 0, 0, 255];
+    let mixColor = [
+        [magenta, black],
+        [black, magenta]
+    ];
+    return {
+        pixels: new Uint8ClampedArray(mixColor.flat(Infinity)),
+        width: 2,
+        height: 2
+    };
+}
+function loadWallTexture(filePath) {
+    function isPowerOf2(val) {
+        return (val & (val - 1)) === 0; // clever bitwise trick thanks to www.geeksforgeeks.org/dsa/program-to-find-whether-a-given-number-is-power-of-2/#approach-4-using-and-operator-o1-time-and-o1-space
+    }
+    let image = new Image();
+    image.onload = async () => {
+        let hasProperDimensions = isPowerOf2(image.width) && isPowerOf2(image.height);
+        if (!hasProperDimensions) {
+            console.error("image dimensions are not power of 2");
+            return;
+        }
+        let offscreenCanvas = new OffscreenCanvas(image.width, image.height);
+        let ctx = offscreenCanvas.getContext("2d");
+        if (!(ctx instanceof OffscreenCanvasRenderingContext2D)) {
+            throw new TypeError("context not of type CanvasRenderingContext2D");
+        }
+        ctx.drawImage(image, 0, 0, image.width, image.height);
+        let newWallTexture = {
+            pixels: ctx.getImageData(0, 0, image.width, image.height, {
+                pixelFormat: "rgba-unorm8"
+            }).data,
+            width: image.width,
+            height: image.height
+        };
+        wallTexture = newWallTexture;
+    };
+    image.src = filePath;
+}
 function getFullShaderProgram(gl, vertexSource, fragmentSource) {
     let shadersInfo = [
         { type: gl.VERTEX_SHADER, src: vertexSource },
@@ -95,52 +136,123 @@ function drawPoint(gl, program, point) {
     gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 3 * Float32Array.BYTES_PER_ELEMENT, 0);
     gl.drawArrays(gl.POINTS, 0, 1);
 }
-function drawVerticalStrips(gl, program, intersections) {
-    let lineHeights = intersections.map((point) => gl.getParameter(gl.VIEWPORT)[3] / Math.hypot(player.x - point[0], player.y - point[1]));
-    let stripWidth = gl.getParameter(gl.VIEWPORT)[2] / lineHeights.length;
+function getTextureCoordinates(intersection, nextIntersection) {
+    function getIdentity(val) {
+        return val;
+    }
+    function getNegated(val) {
+        return -val;
+    }
+    let uOperation;
+    let index;
+    if (intersection.isBoundaryHorizontal) {
+        uOperation = intersection.isUp ? getIdentity : getNegated;
+        index = 0;
+    }
+    else {
+        uOperation = intersection.isLeft ? getIdentity : getNegated;
+        index = 1;
+    }
+    let bottomLeft = [uOperation(intersection.otherCoordinate), 0];
+    let bottomRight = [uOperation(nextIntersection.otherCoordinate), 0];
+    let topRight = [uOperation(nextIntersection.otherCoordinate), 1];
+    let topLeft = [uOperation(intersection.otherCoordinate), 1];
+    return [
+        bottomLeft,
+        bottomRight,
+        topRight,
+        topLeft
+    ];
+}
+function drawVerticalStripsFromIntersections(gl, program, intersections, wallTexture) {
+    /*
+        Format of pipeline (for now)
+        [x, y, u, v, isBoundaryHorizontal]
+    */
+    let sin = Math.sin(player.angleRadians);
+    let cos = Math.cos(player.angleRadians);
     let stripMiddleY = 0.5 * gl.getParameter(gl.VIEWPORT)[3];
-    let stripPoints = lineHeights.map((height, i) => {
-        let screenX = i * stripWidth;
-        let halfHeight = 0.5 * height;
-        let bottomLeft = [screenX, stripMiddleY - halfHeight];
-        let bottomRight = [screenX + stripWidth, stripMiddleY - halfHeight];
-        let topRight = [screenX + stripWidth, stripMiddleY + halfHeight];
-        let topLeft = [screenX, stripMiddleY + halfHeight];
-        return [
+    let intersectionPairs = [];
+    for (let i = 0; i + 1 < intersections.length; ++i) {
+        let intersection = intersections[i];
+        let nextIntersection = intersections[i + 1];
+        if (intersection.isBoundaryHorizontal === nextIntersection.isBoundaryHorizontal && intersection.boundaryCoordinate === nextIntersection.boundaryCoordinate) {
+            intersectionPairs.push([intersection, nextIntersection]);
+        }
+    }
+    let stripWidth = gl.getParameter(gl.VIEWPORT)[2] / intersectionPairs.length;
+    let leftX = 0;
+    let stripData = [];
+    for (const [intersection, nextIntersection] of intersectionPairs) {
+        let normalizedDistance = Math.sqrt((intersection.point[0] - player.x) * cos + (intersection.point[1] - player.y) * sin);
+        let halfHeight = 0.5 * gl.getParameter(gl.VIEWPORT)[3] / normalizedDistance;
+        let rightX = leftX + stripWidth;
+        let bottomY = stripMiddleY - halfHeight;
+        let topY = stripMiddleY + halfHeight;
+        let bottomLeft = [[leftX, bottomY]];
+        let bottomRight = [[rightX, bottomY]];
+        let topRight = [[rightX, topY]];
+        let topLeft = [[leftX, topY]];
+        let coordinateInfos = [
+            bottomLeft,
+            bottomRight,
+            topRight,
+            topLeft
+        ];
+        let textureCoordinates = getTextureCoordinates(intersection, nextIntersection);
+        for (let i = 0; i < coordinateInfos.length; ++i) {
+            coordinateInfos[i].push(textureCoordinates[i]);
+        }
+        let boundaryFloat = intersection.isBoundaryHorizontal ? 1 : 0;
+        for (let i = 0; i < coordinateInfos.length; ++i) {
+            coordinateInfos[i].push([boundaryFloat]);
+        }
+        stripData.push([
             bottomLeft,
             bottomRight,
             topLeft,
             bottomRight,
             topRight,
             topLeft
-        ];
-    }).flat(Infinity);
-    const VERTEX_BUFFER = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, VERTEX_BUFFER);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(stripPoints), gl.STATIC_DRAW);
+        ]);
+        leftX = rightX;
+    }
+    stripData = stripData.flat(Infinity);
+    const DATA_BUFFER = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, DATA_BUFFER);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(stripData), gl.STATIC_DRAW);
     const aPosition = gl.getAttribLocation(program, "aPosition");
     gl.enableVertexAttribArray(aPosition);
-    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 2 * Float32Array.BYTES_PER_ELEMENT, 0);
-    let colors = new Array(stripPoints.length).fill([1, 0, 0]).flat();
-    const COLOR_BUFFER = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, COLOR_BUFFER);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-    const aColor = gl.getAttribLocation(program, "aColor");
-    gl.enableVertexAttribArray(aColor);
-    gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 3 * Float32Array.BYTES_PER_ELEMENT, 0);
-    gl.drawArrays(gl.TRIANGLES, 0, stripPoints.length / 2);
-}
-function getNearerIntersection(player, intersection1, intersection2) {
-    if (intersection1 === null) {
-        return intersection2;
-    }
-    if (intersection2 === null) {
-        return intersection1;
-    }
-    return player.x < intersection1[0] === intersection1[0] < intersection2[0] ? intersection1 : intersection2;
+    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 5 * Float32Array.BYTES_PER_ELEMENT, 0);
+    const aTextureCoordsLocation = gl.getAttribLocation(PROGRAM, "aTextureCoordinates");
+    gl.enableVertexAttribArray(aTextureCoordsLocation);
+    gl.vertexAttribPointer(aTextureCoordsLocation, 2, gl.FLOAT, false, 5 * Float32Array.BYTES_PER_ELEMENT, 2 * Float32Array.BYTES_PER_ELEMENT);
+    const aOrientation = gl.getAttribLocation(program, "aOrientation");
+    gl.enableVertexAttribArray(aOrientation);
+    gl.vertexAttribPointer(aOrientation, 1, gl.FLOAT, false, 5 * Float32Array.BYTES_PER_ELEMENT, 4 * Float32Array.BYTES_PER_ELEMENT);
+    // let colors = new Array(stripData.length).fill([1.0, 0.0, 0.0]).flat();
+    // const COLOR_BUFFER = gl.createBuffer();
+    // gl.bindBuffer(gl.ARRAY_BUFFER, COLOR_BUFFER);
+    // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+    // const aColor = gl.getAttribLocation(program, "aColor");
+    // gl.enableVertexAttribArray(aColor);
+    // gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 3 * Float32Array.BYTES_PER_ELEMENT, 0);
+    let texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, wallTexture.width, wallTexture.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, wallTexture.pixels);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    const textureLocation = gl.getUniformLocation(PROGRAM, "uTexture");
+    gl.uniform1i(textureLocation, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, stripData.length / 5);
 }
 const VERTEX_SRC = loadShaderSource("./shader/vertex.vs");
 const FRAGMENT_SRC = loadShaderSource("./shader/fragment.fs");
+let wallTexture = getDefaultWallTexture();
+loadWallTexture("./texture/directional-test.png");
 // Make sure canvas is fixed in size since that can ruin things later...
 const WEBGL_CANVAS = document.getElementById("webgl-canvas");
 if (!(WEBGL_CANVAS instanceof HTMLCanvasElement)) {
@@ -157,14 +269,15 @@ const PROGRAM = getFullShaderProgram(gl, await VERTEX_SRC, await FRAGMENT_SRC);
 gl.useProgram(PROGRAM);
 gl.viewport(0, 0, WEBGL_CANVAS.width, WEBGL_CANVAS.height); // clip space -> pixels
 gl.clearColor(0.5, 0.5, 0.5, 1);
+gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 let tileMap = new TileMap(gl.getParameter(gl.VIEWPORT));
-let player = new Player(1.2, 3.45, tileMap);
-function drawScene(gl) {
+let player = new Player(1.5, 1.5, 0.5 * Math.PI, tileMap);
+function drawScene(gl, wallTexture) {
     gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
     const WINDOW_HEIGHT_HANDLE = gl.getUniformLocation(PROGRAM, "uWindowHeight");
     gl.uniform1i(WINDOW_HEIGHT_HANDLE, gl.getParameter(gl.VIEWPORT)[3]);
-    let intersections = player.getAllIntersections(60).filter((point) => point !== null);
-    drawVerticalStrips(gl, PROGRAM, intersections);
+    let intersections = player.getAllIntersections(60);
+    drawVerticalStripsFromIntersections(gl, PROGRAM, intersections, wallTexture);
 }
 document.addEventListener("keydown", (event) => {
     let doesKeyAffect = true;
@@ -176,17 +289,17 @@ document.addEventListener("keydown", (event) => {
             player.turnLeft();
             break;
         case "ArrowUp":
-            player.moveForward();
+            player.tryMoveForward();
             break;
         case "ArrowDown":
-            player.moveBackward();
+            player.tryMoveBackward();
             break;
         default:
             doesKeyAffect = false;
             break;
     }
     if (doesKeyAffect) {
-        requestAnimationFrame(() => drawScene(gl));
+        requestAnimationFrame(() => drawScene(gl, wallTexture));
     }
 });
-requestAnimationFrame(() => drawScene(gl));
+requestAnimationFrame(() => drawScene(gl, wallTexture));
