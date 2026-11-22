@@ -153,10 +153,10 @@ function getTextureCoordinates(intersection, nextIntersection) {
         uOperation = intersection.isLeft ? getIdentity : getNegated;
         index = 1;
     }
-    let bottomLeft = [uOperation(intersection.point[index]), 0];
-    let bottomRight = [uOperation(nextIntersection.point[index]), 0];
-    let topRight = [uOperation(nextIntersection.point[index]), 1];
-    let topLeft = [uOperation(intersection.point[index]), 1];
+    let bottomLeft = [uOperation(intersection.otherCoordinate), 0];
+    let bottomRight = [uOperation(nextIntersection.otherCoordinate), 0];
+    let topRight = [uOperation(nextIntersection.otherCoordinate), 1];
+    let topLeft = [uOperation(intersection.otherCoordinate), 1];
     return [
         bottomLeft,
         bottomRight,
@@ -171,15 +171,21 @@ function drawVerticalStripsFromIntersections(gl, program, intersections, wallTex
     */
     let sin = Math.sin(player.angleRadians);
     let cos = Math.cos(player.angleRadians);
-    let stripWidth = gl.getParameter(gl.VIEWPORT)[2] / intersections.length;
     let stripMiddleY = 0.5 * gl.getParameter(gl.VIEWPORT)[3];
-    let stripData = [];
+    let intersectionPairs = [];
     for (let i = 0; i + 1 < intersections.length; ++i) {
         let intersection = intersections[i];
         let nextIntersection = intersections[i + 1];
+        if (intersection.isBoundaryHorizontal === nextIntersection.isBoundaryHorizontal && intersection.boundaryCoordinate === nextIntersection.boundaryCoordinate) {
+            intersectionPairs.push([intersection, nextIntersection]);
+        }
+    }
+    let stripWidth = gl.getParameter(gl.VIEWPORT)[2] / intersectionPairs.length;
+    let leftX = 0;
+    let stripData = [];
+    for (const [intersection, nextIntersection] of intersectionPairs) {
         let normalizedDistance = Math.sqrt((intersection.point[0] - player.x) * cos + (intersection.point[1] - player.y) * sin);
         let halfHeight = 0.5 * gl.getParameter(gl.VIEWPORT)[3] / normalizedDistance;
-        let leftX = i * stripWidth;
         let rightX = leftX + stripWidth;
         let bottomY = stripMiddleY - halfHeight;
         let topY = stripMiddleY + halfHeight;
@@ -209,6 +215,7 @@ function drawVerticalStripsFromIntersections(gl, program, intersections, wallTex
             topRight,
             topLeft
         ]);
+        leftX = rightX;
     }
     stripData = stripData.flat(Infinity);
     const DATA_BUFFER = gl.createBuffer();

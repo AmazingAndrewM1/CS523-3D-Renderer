@@ -7,9 +7,12 @@ const EPSILON = PI_2 / 1000.0;
 const ONE_DEG_TO_RAD = Math.PI / 180.0;
 
 type Point = [number, number];
+
 type Intersection = {
     point: Point,
     isBoundaryHorizontal: boolean,
+    boundaryCoordinate: number,
+    otherCoordinate: number,
     isUp: boolean,
     isLeft: boolean
 };
@@ -152,8 +155,10 @@ class Player{
             }
         }
         return isInside ? {
-            point: [newX, newY], 
+            point: [newX, newY],
             isBoundaryHorizontal: true,
+            boundaryCoordinate: newY,
+            otherCoordinate: newX,
             isUp: isUp,
             isLeft: isLeft
         } : null;
@@ -207,8 +212,10 @@ class Player{
         }
 
         return isInside ? {
-            point: [newX, newY], 
+            point: [newX, newY],
             isBoundaryHorizontal: false,
+            boundaryCoordinate: newX,
+            otherCoordinate: newY,
             isUp: isUp,
             isLeft: isLeft
         } : null;

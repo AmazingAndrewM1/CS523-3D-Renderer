@@ -127,6 +127,8 @@ class Player {
         return isInside ? {
             point: [newX, newY],
             isBoundaryHorizontal: true,
+            boundaryCoordinate: newY,
+            otherCoordinate: newX,
             isUp: isUp,
             isLeft: isLeft
         } : null;
@@ -176,6 +178,8 @@ class Player {
         return isInside ? {
             point: [newX, newY],
             isBoundaryHorizontal: false,
+            boundaryCoordinate: newX,
+            otherCoordinate: newY,
             isUp: isUp,
             isLeft: isLeft
         } : null;
